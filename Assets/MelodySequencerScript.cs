@@ -15,6 +15,7 @@ public class MelodySequencerScript : MonoBehaviour
     static int moduleIdCounter = 1;
     int moduleId;
     private bool moduleSolved;
+    private bool solveAnimationDone = false;
 
     public KMSelectable[] keys;
     public KMSelectable listen;
@@ -312,6 +313,7 @@ public class MelodySequencerScript : MonoBehaviour
 
         GetComponent<KMBombModule>().HandlePass();
         StopAllCoroutines();
+        solveAnimationDone = true;
     }
 
     private IEnumerator DisableText()
@@ -392,7 +394,7 @@ public class MelodySequencerScript : MonoBehaviour
             yield return Enumerable.Repeat(CycleBtns[1], ((slotNumber - 1) - currentPart + 8) % 8).ToArray();
         }
 
-        if ((m = Regex.Match(command, @"^\s*(play|listen +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
+        else if ((m = Regex.Match(command, @"^\s*(play|listen +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
             var slotNumber = int.Parse(m.Groups[2].Value);
             if (slotNumber < 1 || slotNumber > 8)
@@ -401,7 +403,7 @@ public class MelodySequencerScript : MonoBehaviour
             yield return Enumerable.Repeat(CycleBtns[1], ((slotNumber - 1) - currentPart + 8) % 8).Concat(new[] { listen }).ToArray();
         }
 
-        if ((m = Regex.Match(command, @"^\s*(move|yellow|move +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
+        else if ((m = Regex.Match(command, @"^\s*(move|yellow|move +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
             var slotNumber = int.Parse(m.Groups[2].Value);
             if (slotNumber < 1 || slotNumber > 8)
@@ -410,7 +412,7 @@ public class MelodySequencerScript : MonoBehaviour
             yield return new[] { move }.Concat(Enumerable.Repeat(CycleBtns[1], ((slotNumber - 1) - currentPart + 8) % 8)).Concat(new[] { move }).ToArray();
         }
 
-        if ((m = Regex.Match(command, @"^\s*(record|submit|input|enter|red|play|press)\s+([ABCDEFG#♯45 ,;]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
+        else if ((m = Regex.Match(command, @"^\s*(record|submit|input|enter|red|play|press)\s+([ABCDEFG#♯45 ,;]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
             var sequence = m.Groups[2].Value.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var keysToPress = new List<KMSelectable>();
@@ -424,11 +426,75 @@ public class MelodySequencerScript : MonoBehaviour
                 keysToPress.Add(keys[ix]);
             }
             yield return null;
+            yield return "solve";
             foreach (var key in keysToPress)
             {
                 yield return new[] { key };
                 yield return new WaitForSeconds(.13f);
             }
         }
+    }
+
+    IEnumerator TwitchHandleForcedSolve()
+    {
+
+        Debug.LogFormat(@"[Melody Sequencer #{0}] This module was force solved by TP.", moduleId);
+
+        while (!moduleSolved)
+        {
+            while (listenActive)
+                yield return true;
+
+            // Are we currently recording?
+            if (recordActive)
+            {
+                keys[parts[currentPart][keysPressed]].OnInteract();
+                yield return new WaitForSeconds(.23f);
+            }
+
+            // Are we currently moving?
+            else if (moveActive)
+            {
+                // Move it to the correct slot
+                var correctSlot = Array.IndexOf(parts, moduleParts[selectedPart]);
+                if (correctSlot == -1)
+                {
+                    // The module is in a state in which a strike is unavoidable.
+                    yield break;
+                }
+                while (currentPart != correctSlot)
+                {
+                    CycleBtns[1].OnInteract();
+                    yield return new WaitForSeconds(.1f);
+                }
+                move.OnInteract();
+                yield return new WaitForSeconds(.23f);
+            }
+
+            else if (moduleParts[currentPart] == null && !givenParts.Contains(currentPart))
+            {
+                // Start a recording
+                record.OnInteract();
+                yield return new WaitForSeconds(.1f);
+            }
+
+            else if (moduleParts[currentPart] != null && moduleParts[currentPart] != parts[currentPart])
+            {
+                // Start a move
+                move.OnInteract();
+                yield return new WaitForSeconds(.1f);
+            }
+
+            else
+            {
+                // Move on to the next part
+                CycleBtns[1].OnInteract();
+                yield return true;
+                yield return new WaitForSeconds(.1f);
+            }
+        }
+
+        while (!solveAnimationDone)
+            yield return true;
     }
 }
