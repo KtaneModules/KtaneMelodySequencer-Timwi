@@ -416,10 +416,9 @@ public class MelodySequencerScript : MonoBehaviour
 
     private IEnumerator ProcessTwitchCommand(string command)
     {
-        do
-        {
+        while (listenActive || recordActive)
             yield return "trycancel";
-        } while (listenActive || recordActive);
+
         if (moduleSolved)
         {
             yield return "sendtochaterror The module has entered its Melody state, causing the module to be solved shortly.";
