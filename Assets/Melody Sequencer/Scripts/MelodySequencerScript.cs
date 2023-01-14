@@ -38,6 +38,8 @@ public class MelodySequencerScript : MonoBehaviour
     private bool listenActive = false;
     private bool moveActive = false;
     private bool recordActive = false;
+    private Coroutine displayFlashCoroutine = null;
+    private Coroutine[] keyFlashCoroutines = null;
 
     private static readonly int[][] seed1parts = new[]
     {
@@ -67,6 +69,7 @@ public class MelodySequencerScript : MonoBehaviour
     void Awake()
     {
         moduleId = moduleIdCounter++;
+        keyFlashCoroutines = new Coroutine[keys.Length];
         for (int i = 0; i < keys.Length; i++)
         {
             keys[i].OnInteract += KeyPressed(i);
@@ -159,7 +162,14 @@ public class MelodySequencerScript : MonoBehaviour
                 RecordInput(keyPressed);
                 return false;
             }
-            StartCoroutine(GUIUpdate(keyPressed));
+
+            if (displayFlashCoroutine != null)
+                StopCoroutine(displayFlashCoroutine);
+            displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
+
+            if (keyFlashCoroutines[keyPressed] != null)
+                StopCoroutine(keyFlashCoroutines[keyPressed]);
+            keyFlashCoroutines[keyPressed] = StartCoroutine(KeyFlash(keyPressed));
             return false;
         };
     }
@@ -277,7 +287,7 @@ public class MelodySequencerScript : MonoBehaviour
 
     void RecordInput(int keyPressed)
     {
-        StartCoroutine(GUIUpdate(keyPressed));
+        StartCoroutine(DisplayFlash(keyPressed));
 
         if (keyPressed == parts[currentPart][keysPressed])
         {
@@ -355,14 +365,9 @@ public class MelodySequencerScript : MonoBehaviour
         ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.15f, 0.5f, 2);
     }
 
-    private IEnumerator GUIUpdate(int keyPressed)
+    private IEnumerator KeyFlash(int keyPressed)
     {
         Audio.PlaySoundAtTransform(actualNoteNames[currentInst][keyPressed], transform);
-        if (!recordActive)
-        {
-            ListenNotes.GetComponent<TextMesh>().text = noteNames[keyPressed];
-            ListenNotes.SetActive(true);
-        }
 
         if (noteNames[keyPressed].Contains("#"))
         {
@@ -376,13 +381,17 @@ public class MelodySequencerScript : MonoBehaviour
             yield return new WaitForSeconds(0.23f);
             keys[keyPressed].GetComponent<MeshRenderer>().sharedMaterial = KeysLit[0];
         }
+    }
 
+    private IEnumerator DisplayFlash(int keyPressed)
+    {
         if (!recordActive)
         {
-            yield return new WaitForSeconds(0.5f);
+            ListenNotes.GetComponent<TextMesh>().text = noteNames[keyPressed];
+            ListenNotes.SetActive(true);
+            yield return new WaitForSeconds(0.73f);
             ListenNotes.SetActive(false);
         }
-
     }
 
     private IEnumerator Play()
