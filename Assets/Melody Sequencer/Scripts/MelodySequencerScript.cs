@@ -420,12 +420,12 @@ public class MelodySequencerScript : MonoBehaviour
     }
 
 #pragma warning disable 0414
-    private readonly string TwitchHelpMessage = "!{0} slot 4 [select slot 4] | !{0} play 4 [select slot 4 and play it] | !{0} move to 4 [move the current selected slot to slot 4] | !{0} record C# D# F [press record and play these notes] | !{0} play C# D# F [just play these notes] | !{0} music/piano/xylo/harp [select music/piano/xylo/harp as instrument]";
+    private readonly string TwitchHelpMessage = "!{0} slot 4 [select slot 4] | !{0} play 4 [select slot 4 and play it] | !{0} move to 4 [move the current selected slot to slot 4] | !{0} record C#4 D#4 F4 [press record and play these notes] | !{0} play C#4 D#4 F4 [just play these notes] | !{0} music/piano/xylo/harp [select music/piano/xylo/harp as instrument]";
 #pragma warning restore 0414
 
     private IEnumerator ProcessTwitchCommand(string command)
     {
-        while (listenActive || recordActive)
+        while (listenActive)
             yield return "trycancel";
 
         if (moduleSolved)
@@ -433,9 +433,15 @@ public class MelodySequencerScript : MonoBehaviour
             yield return "sendtochaterror The module has entered its Melody state, causing the module to be solved shortly.";
             yield break;
         }
+
         Match m;
         if ((m = Regex.Match(command, @"^\s*(slot|select)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
+            if (recordActive)
+            {
+                yield return "sendtochaterror Finish your recording first.";
+                yield break;
+            }
             var slotNumber = int.Parse(m.Groups[2].Value);
             if (slotNumber < 1 || slotNumber > 8)
                 yield break;
@@ -444,6 +450,11 @@ public class MelodySequencerScript : MonoBehaviour
         }
         else if ((m = Regex.Match(command, @"^\s*(play|listen +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
+            if (recordActive)
+            {
+                yield return "sendtochaterror Finish your recording first.";
+                yield break;
+            }
             var slotNumber = int.Parse(m.Groups[2].Value);
             if (slotNumber < 1 || slotNumber > 8)
                 yield break;
@@ -452,6 +463,11 @@ public class MelodySequencerScript : MonoBehaviour
         }
         else if ((m = Regex.Match(command, @"^\s*(move|yellow|move +to)\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
+            if (recordActive)
+            {
+                yield return "sendtochaterror Finish your recording first.";
+                yield break;
+            }
             var slotNumber = int.Parse(m.Groups[2].Value);
             if (slotNumber < 1 || slotNumber > 8)
                 yield break;
@@ -505,7 +521,6 @@ public class MelodySequencerScript : MonoBehaviour
 
     IEnumerator TwitchHandleForcedSolve()
     {
-
         Debug.LogFormat(@"[Melody Sequencer #{0}] This module was force solved by TP.", moduleId);
 
         while (!moduleSolved)
