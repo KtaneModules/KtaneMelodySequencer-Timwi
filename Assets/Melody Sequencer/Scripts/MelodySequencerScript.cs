@@ -157,19 +157,20 @@ public class MelodySequencerScript : MonoBehaviour
         {
             if (listenActive || moveActive)
                 return false;
-            if (recordActive)
-            {
-                RecordInput(keyPressed);
-                return false;
-            }
-
-            if (displayFlashCoroutine != null)
-                StopCoroutine(displayFlashCoroutine);
-            displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
 
             if (keyFlashCoroutines[keyPressed] != null)
                 StopCoroutine(keyFlashCoroutines[keyPressed]);
             keyFlashCoroutines[keyPressed] = StartCoroutine(KeyFlash(keyPressed));
+
+            if (recordActive)
+                RecordInput(keyPressed);
+            else
+            {
+                if (displayFlashCoroutine != null)
+                    StopCoroutine(displayFlashCoroutine);
+                displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
+            }
+
             return false;
         };
     }
@@ -385,13 +386,10 @@ public class MelodySequencerScript : MonoBehaviour
 
     private IEnumerator DisplayFlash(int keyPressed)
     {
-        if (!recordActive)
-        {
-            ListenNotes.GetComponent<TextMesh>().text = noteNames[keyPressed];
-            ListenNotes.SetActive(true);
-            yield return new WaitForSeconds(0.73f);
-            ListenNotes.SetActive(false);
-        }
+        ListenNotes.GetComponent<TextMesh>().text = noteNames[keyPressed];
+        ListenNotes.SetActive(true);
+        yield return new WaitForSeconds(0.73f);
+        ListenNotes.SetActive(false);
     }
 
     private IEnumerator Play()
