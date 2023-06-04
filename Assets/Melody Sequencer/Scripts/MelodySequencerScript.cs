@@ -288,7 +288,9 @@ public class MelodySequencerScript : MonoBehaviour
 
     void RecordInput(int keyPressed)
     {
-        StartCoroutine(DisplayFlash(keyPressed));
+        if (displayFlashCoroutine != null)
+            StopCoroutine(displayFlashCoroutine);
+        displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
 
         if (keyPressed == parts[currentPart][keysPressed])
         {
