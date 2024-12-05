@@ -38,7 +38,7 @@ public class MelodySequencerScript : MonoBehaviour
     private bool listenActive = false;
     private bool moveActive = false;
     private bool recordActive = false;
-    private Coroutine displayFlashCoroutine = null;
+    private Coroutine displayCoroutine = null;
     private Coroutine[] keyFlashCoroutines = null;
 
     private static readonly int[][] seed1parts = new[]
@@ -54,7 +54,7 @@ public class MelodySequencerScript : MonoBehaviour
     };
 
     private int[][] parts;
-    private int[][] moduleParts = new int[8][];
+    private readonly int[][] moduleParts = new int[8][];
     private List<int> givenParts = new List<int>();
 
     private static readonly string[] noteNames = new[] { "C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5", "C#5", "D5", "D#5", "E5", "F5", "F#5", "G5", "G#5", "A5", "A#5", "B5", };
@@ -165,11 +165,7 @@ public class MelodySequencerScript : MonoBehaviour
             if (recordActive)
                 RecordInput(keyPressed);
             else
-            {
-                if (displayFlashCoroutine != null)
-                    StopCoroutine(displayFlashCoroutine);
-                displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
-            }
+                displayCoroutine = StartCoroutine(DisplayFlash(keyPressed));
 
             return false;
         };
@@ -227,16 +223,31 @@ public class MelodySequencerScript : MonoBehaviour
             ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.16f, 0.5f, 2);
             ListenNotes.GetComponent<TextMesh>().text = "Wrong";
             ListenNotes.SetActive(true);
-            StartCoroutine(DisableText());
+            displayCoroutine = StartCoroutine(DisableText());
+            GetComponent<KMBombModule>().HandleStrike();
+            return;
+        }
+
+        if (moduleParts[currentPart] != null)
+        {
+            Debug.LogFormat(@"[Melody Sequencer #{0}] You tried to record in slot #{1} but that slot already has something in it. Strike!", moduleId, currentPart + 1);
+            ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.16f, 0.5f, 2);
+            ListenNotes.GetComponent<TextMesh>().text = "Wrong";
+            ListenNotes.SetActive(true);
+            displayCoroutine = StartCoroutine(DisableText());
             GetComponent<KMBombModule>().HandleStrike();
             return;
         }
 
         if (recordActive)
         {
-            ListenNotes.GetComponent<TextMesh>().color = new Color32(230, 255, 0, 255);
-            ListenNotes.SetActive(false);
             recordActive = false;
+            keysPressed = 0;
+            ListenNotes.GetComponent<TextMesh>().color = new Color32(230, 255, 0, 255);
+            ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.1f, 0.5f, 2);
+            ListenNotes.GetComponent<TextMesh>().text = "Canceled";
+            ListenNotes.SetActive(true);
+            displayCoroutine = StartCoroutine(DisableText());
             return;
         }
 
@@ -244,7 +255,6 @@ public class MelodySequencerScript : MonoBehaviour
         ListenNotes.GetComponent<TextMesh>().color = new Color32(214, 31, 31, 255);
         ListenNotes.SetActive(true);
         recordActive = true;
-
     }
 
     void Move()
@@ -272,7 +282,7 @@ public class MelodySequencerScript : MonoBehaviour
 
                 moduleParts[currentPart] = parts[currentPart];
                 moduleParts[selectedPart] = modulePartsTemp;
-                StartCoroutine(DisableText());
+                displayCoroutine = StartCoroutine(DisableText());
             }
             else
             {
@@ -280,7 +290,7 @@ public class MelodySequencerScript : MonoBehaviour
                 ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.16f, 0.5f, 2);
                 ListenNotes.GetComponent<TextMesh>().text = "Wrong";
                 Debug.LogFormat(@"[Melody Sequencer #{0}] You tried to swap slot {1} with slot {2} — strike!", moduleId, selectedPart + 1, currentPart + 1);
-                StartCoroutine(DisableText());
+                displayCoroutine = StartCoroutine(DisableText());
             }
             moveActive = false;
         }
@@ -288,9 +298,7 @@ public class MelodySequencerScript : MonoBehaviour
 
     void RecordInput(int keyPressed)
     {
-        if (displayFlashCoroutine != null)
-            StopCoroutine(displayFlashCoroutine);
-        displayFlashCoroutine = StartCoroutine(DisplayFlash(keyPressed));
+        displayCoroutine = StartCoroutine(DisplayFlash(keyPressed));
 
         if (keyPressed == parts[currentPart][keysPressed])
         {
@@ -300,7 +308,7 @@ public class MelodySequencerScript : MonoBehaviour
                 ListenNotes.GetComponent<TextMesh>().color = new Color32(230, 255, 0, 255);
                 ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.1f, 0.5f, 2);
                 ListenNotes.GetComponent<TextMesh>().text = "Well done";
-                StartCoroutine(DisableText());
+                displayCoroutine = StartCoroutine(DisableText());
                 keysPressed = 0;
                 moduleParts[currentPart] = parts[currentPart];
                 recordActive = false;
@@ -318,7 +326,7 @@ public class MelodySequencerScript : MonoBehaviour
             ListenNotes.GetComponent<TextMesh>().color = new Color32(230, 255, 0, 255);
             ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.16f, 0.5f, 2);
             ListenNotes.GetComponent<TextMesh>().text = "Wrong";
-            StartCoroutine(DisableText());
+            displayCoroutine = StartCoroutine(DisableText());
             GetComponent<KMBombModule>().HandleStrike();
             keysPressed = 0;
             recordActive = false;
@@ -363,6 +371,8 @@ public class MelodySequencerScript : MonoBehaviour
 
     private IEnumerator DisableText()
     {
+        if (displayCoroutine != null)
+            StopCoroutine(displayCoroutine);
         yield return new WaitForSeconds(1f);
         ListenNotes.SetActive(false);
         ListenNotes.GetComponent<Transform>().localScale = new Vector3(0.15f, 0.5f, 2);
@@ -388,6 +398,8 @@ public class MelodySequencerScript : MonoBehaviour
 
     private IEnumerator DisplayFlash(int keyPressed)
     {
+        if (displayCoroutine != null)
+            StopCoroutine(displayCoroutine);
         ListenNotes.GetComponent<TextMesh>().text = noteNames[keyPressed];
         ListenNotes.SetActive(true);
         yield return new WaitForSeconds(0.73f);
